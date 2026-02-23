@@ -3,15 +3,12 @@
 #include <LittleFS.h>
 #include <WiFi.h>
 
-#define PIN_RED 15
-#define PIN_GREEN 2
-#define PIN_BLUE 4
+#define PIN_LED 2
 
 AsyncWebServer server(80);
 
-int red, green, blue;
-
 void setup() {
+  pinMode(PIN_LED, OUTPUT);
   Serial.begin(115200);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED) {
@@ -31,35 +28,26 @@ void setup() {
   });
 
   // Handle POST requests to /set-color
-  server.on("/setcolor", HTTP_POST, [](AsyncWebServerRequest* request) {
-    if (request->hasParam("r", true) && request->hasParam("g", true) &&
-        request->hasParam("b", true)) {
-      int r = request->getParam("r", true)->value().toInt();
-      int g = request->getParam("g", true)->value().toInt();
-      int b = request->getParam("b", true)->value().toInt();
+  server.on("/set", HTTP_POST, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("status", true)) {
+      const String status = request->getParam("status", true)->value();
+      bool isOn = (status == "ON");
 
-      Serial.printf("Setting RGB to: R:%d, G:%d, B:%d\n", r, g, b);
+      digitalWrite(PIN_LED, isOn ? HIGH : LOW);
 
-      red = r;
-      green = g;
-      blue = b;
-
-      // Set the colors on the LED using PWM
-      analogWrite(PIN_RED, r);
-      analogWrite(PIN_GREEN, g);
-      analogWrite(PIN_BLUE, b);
-
-      request->send(200, "text/plain", "Color Updated");
+      request->send(200, "application/json",
+                    "{\"status\":\"" + status +
+                        "\", \"message\":\"LED turned " + status + "\"}");
     } else {
-      request->send(400, "text/plain", "Missing RGB parameters");
+      request->send(400, "text/plain", "Missing status parameter");
     }
   });
 
-  // Get the current color (on page load) as JSON
-  server.on("/getcolor", HTTP_GET, [](AsyncWebServerRequest* request) {
-    // Create a JSON string: {"r":255, "g":0, "b":0}
-    String json = "{\"r\":" + String(red) + ",\"g\":" + String(green) +
-                  ",\"b\":" + String(blue) + "}";
+  // Get the current LED status (on page load) as JSON
+  server.on("/get", HTTP_GET, [](AsyncWebServerRequest* request) {
+    // Create a JSON string: {"status":true}
+    String json = "{\"status\":" +
+                  String(digitalRead(PIN_LED) == HIGH ? "true" : "false") + "}";
     request->send(200, "application/json", json);
   });
 
