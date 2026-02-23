@@ -10,6 +10,7 @@ AsyncWebServer server(80);
 void setup() {
   pinMode(PIN_LED, OUTPUT);
   Serial.begin(115200);
+  // WIFI_SSID and WIFI_PASSWORD are from the .env file
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
@@ -35,6 +36,8 @@ void setup() {
 
       digitalWrite(PIN_LED, isOn ? HIGH : LOW);
 
+      // Respond with JSON: {"status":"ON"} or {"status":"OFF"}, also include a
+      // message for the alert()
       request->send(200, "application/json",
                     "{\"status\":\"" + status +
                         "\", \"message\":\"LED turned " + status + "\"}");
@@ -45,7 +48,8 @@ void setup() {
 
   // Get the current LED status (on page load) as JSON
   server.on("/get", HTTP_GET, [](AsyncWebServerRequest* request) {
-    // Create a JSON string: {"status":true}
+    // Create a JSON string: {"status":true}, no message is included here
+    // because this isn't an alert
     String json = "{\"status\":" +
                   String(digitalRead(PIN_LED) == HIGH ? "true" : "false") + "}";
     request->send(200, "application/json", json);
@@ -54,4 +58,5 @@ void setup() {
   server.begin();
 }
 
+// Nothing is in the loop, but it needs to be here for the Arduino framework
 void loop() {}
